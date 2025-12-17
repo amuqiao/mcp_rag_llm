@@ -29,14 +29,12 @@ class MCPClient(object):
         self.session = None #上下文管理
         self.stdio, self.write = None, None
         self.exit_stack = AsyncExitStack()
-        print(os.getenv("API_KEY"))
-        print(os.getenv("BASE_URL"))
-        print(os.getenv("MODEL"))
+        # 从.env文件加载API配置
         self.client = OpenAI(
-            api_key=os.getenv("API_KEY"),
-            base_url=os.getenv("BASE_URL")
+            api_key=os.environ.get("API_KEY"),
+            base_url=os.environ.get("BASE_URL")
         )
-        self.model = os.getenv("MODEL")
+        self.model = os.environ.get("MODEL")  # 使用通义千问模型
 
     async def cleanup(self):
         await self.exit_stack.aclose()

@@ -1,14 +1,16 @@
 import os
 from openai import OpenAI
+from dotenv import load_dotenv
+load_dotenv()
 
 client = OpenAI(
-    # 若没有配置环境变量，请用百炼API Key将下行替换为：api_key="sk-xxx",
-    api_key="", # 如何获取API Key：https://help.aliyun.com/zh/model-studio/developer-reference/get-api-key
-    base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+    # 从.env文件加载API配置
+    api_key=os.environ.get("API_KEY"),
+    base_url=os.environ.get("BASE_URL"),
 )
 
 completion = client.chat.completions.create(
-    model="qwen-plus", # 模型列表：https://help.aliyun.com/zh/model-studio/getting-started/models
+    model=os.environ.get("MODEL"), # 模型列表：https://help.aliyun.com/zh/model-studio/getting-started/models
     messages=[
         {'role': 'system', 'content': 'You are a helpful assistant.'},
         {'role': 'user', 'content': '你是谁？'}

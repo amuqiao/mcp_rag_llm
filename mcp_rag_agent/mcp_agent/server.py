@@ -6,6 +6,9 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 import httpx
 import json
+import os
+from dotenv import load_dotenv
+load_dotenv()
 #创建一个对象
 mcp = FastMCP("weather")
 
@@ -22,8 +25,8 @@ async def get_weather(city: str) -> dict[str, Any]:
        api.weatherapi.com
     """
     #查询当前时间的天气情况
-    url = "http://api.weatherapi.com/v1/current.json"
-    api_key=""
+    url = os.environ.get("WEATHER_API_URL")
+    api_key = os.environ.get("WEATHER_API_KEY")
     parameter = {
         "q": city,
         "key": api_key
@@ -74,7 +77,7 @@ if __name__=="__main__":
 
 '''
 if __name__ == "__main__":
-    #asyncio.run(query_weather("shenzhen"))
+    # asyncio.run(query_weather("shenzhen"))
     mcp.run(transport="stdio")
 
     # server和client都在同一个服务器上，std IO流进行交互，提高交互效率
