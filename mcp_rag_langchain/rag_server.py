@@ -14,7 +14,7 @@ from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_openai import ChatOpenAI
-from langchain.chains import RetrievalQA
+from langchain_community.chains import RetrievalQA
 from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 import os
 from dotenv import load_dotenv
@@ -129,5 +129,5 @@ async def search_demo():
     print("response:",response)
 
 if __name__ == '__main__':
-    #asyncio.run(search_demo())
-    mcp.run(transport="stdio")
+    asyncio.run(search_demo())
+    # mcp.run(transport="stdio")
