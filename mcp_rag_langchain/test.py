@@ -4,11 +4,6 @@
 1.索引的构建
 2.server服务的封装，mcp的封装
 """
-
-
-
-
-
 import asyncio
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
