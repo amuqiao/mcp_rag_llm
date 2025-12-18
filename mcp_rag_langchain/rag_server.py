@@ -133,6 +133,43 @@ async def search_demo():
     response = await rag_query(query)
     print("response:",response)
 
+import argparse
+
 if __name__ == '__main__':
-    asyncio.run(search_demo())
-    # mcp.run(transport="stdio")
+    parser = argparse.ArgumentParser(
+        description='RAG Server - 基于向量数据库的智能问答系统',
+        epilog='''
+使用示例:
+    1. 启动服务器模式:
+        python rag_server_v2.py --mode server
+        # 或默认启动服务器模式
+        python rag_server_v2.py
+    
+    2. 运行测试模式:
+        python rag_server_v2.py --mode test
+        
+    3. 自定义测试查询:
+        python rag_server_v2.py --mode test --query "萧炎的父亲是谁?"
+
+两种模式的区别:
+    - server模式: 启动MCP服务器，等待客户端连接，用于与其他系统集成
+    - test模式: 直接执行查询并显示结果，用于快速测试功能
+        '''
+    )
+    parser.add_argument('--mode', type=str, choices=['server', 'test'], default='server',
+                      help='运行模式：server(启动服务器)或test(运行测试)')
+    parser.add_argument('--query', type=str, default='萧炎的女性朋友有那些?',
+                      help='测试模式下的查询语句')
+    
+    args = parser.parse_args()
+    
+    if args.mode == 'server':
+        '''启动MCP服务器，用于与客户端联调''' 
+        print("启动RAG MCP服务器...")
+        mcp.run(transport="stdio")
+    else:
+        '''运行测试模式，直接执行查询'''        
+        print(f"运行RAG测试查询: {args.query}")
+        response = asyncio.run(rag_query(args.query))
+        print("\n测试结果:")
+        print(response)

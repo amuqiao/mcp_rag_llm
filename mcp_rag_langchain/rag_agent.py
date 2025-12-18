@@ -48,7 +48,7 @@ class MCPClient(object):
 
     async def connect_server(self, server_script_path):
         if not server_script_path.endswith(".py"):
-            ValueError("服务端的脚本必须是python文件，请先检查")
+            raise ValueError("服务端的脚本必须是python文件，请先检查")
 
         #创建启动服务端服务的参数
         server_params = StdioServerParameters(
