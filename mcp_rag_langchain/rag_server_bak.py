@@ -4,13 +4,18 @@
 1.索引的构建
 2.server服务的封装，mcp的封装
 """
+
+
+
+
+
 import asyncio
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_openai import ChatOpenAI
-from langchain_classic.chains import RetrievalQA
-from langchain_huggingface.embeddings import HuggingFaceEmbeddings
+from langchain_community.chains import RetrievalQA
+from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 import os
 from dotenv import load_dotenv
 
@@ -101,7 +106,7 @@ config = {
 rag=RAGSystem(config)
 rag.build_knowledge(
     file_paths=[
-        "E:\github_project\mcp_rag_llm\mcp_rag_langchain\db\rag_db\doupocangqiong.txt"
+        "./data/doupocangqiong.txt"
     ]
 )
 
@@ -124,5 +129,5 @@ async def search_demo():
     print("response:",response)
 
 if __name__ == '__main__':
-    #asyncio.run(search_demo())
-    mcp.run(transport="stdio")
+    asyncio.run(search_demo())
+    # mcp.run(transport="stdio")

@@ -14,8 +14,9 @@ from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_openai import ChatOpenAI
-from langchain_community.chains import RetrievalQA
-from langchain.embeddings.huggingface import HuggingFaceEmbeddings
+# from langchain_community.chains import RetrievalQA
+from langchain_classic.chains import RetrievalQA
+from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 import os
 from dotenv import load_dotenv
 
@@ -29,8 +30,12 @@ class RAGSystem(object):
             base_url=os.getenv("BASE_URL"),
             api_key=os.getenv("API_KEY")
         )
+        # 优先从环境变量获取本地模型路径，否则使用默认本地路径
+        embed_model_path = os.getenv("EMBED_MODEL_PATH", "e:/github_project/models/bge-large-zh-v1.5")
         self.embedding = HuggingFaceEmbeddings(
-            model_name=os.getenv("EMBED_MODEL"),
+            model_name=embed_model_path,
+            model_kwargs={'device': 'cpu'},
+            encode_kwargs={'normalize_embeddings': True}
         )
         self.vectorstore=Chroma(
             collection_name=self.config["collection_name"],
@@ -106,7 +111,7 @@ config = {
 rag=RAGSystem(config)
 rag.build_knowledge(
     file_paths=[
-        "./data/doupocangqiong.txt"
+        "e:/github_project/mcp_rag_llm/mcp_rag_langchain/db/rag_db/doupocangqiong.txt"
     ]
 )
 
