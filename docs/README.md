@@ -6,18 +6,6 @@ MCP RAG LLM 是一个基于模块化通信协议（MCP）的检索增强生成�
 
 ### 1.1 项目结构
 
-```
-mcp_rag_llm/
-├── mcp_rag_agent/           # 基础MCP代理实现
-│   ├── mcp_agent/           # MCP代理核心模块
-│   └── mcp_graphrag/        # GraphRAG集成模块
-├── mcp_rag_agent_graphrag/  # 增强版GraphRAG集成
-│   ├── mcp_agent/           # MCP代理实现
-│   └── mcp_graphrag/        # GraphRAG核心实现
-└── mcp_rag_langchain/       # LangChain RAG实现
-    ├── rag_agent.py         # RAG代理
-    └── rag_server.py        # RAG服务器
-```
 
 ### 1.2 技术栈
 
@@ -36,108 +24,22 @@ mcp_rag_llm/
 
 ### 2.1 MCP客户端模块
 
-MCP客户端模块负责与MCP服务端建立连接，并处理用户输入和响应。
-
-**核心功能：**
-- 连接到MCP服务端
-- 管理对话历史
-- 处理用户查询
-- 调用服务端工具
-- 与LLM交互生成响应
-
-**关键实现 (`mcp_rag_agent_graphrag/mcp_agent/client.py`)：**
-
-```python
-class MCPClient(object):
-    async def connect_server(self, server_script_path):
-        # 创建并启动服务端连接
-        
-    async def process_query(self, query):
-        # 处理用户查询，调用服务端工具并生成响应
-        
-    async def chat(self):
-        # 交互式聊天循环
-```
 
 ### 2.2 MCP服务端模块
 
-MCP服务端模块提供工具注册和调用接口，处理来自客户端的请求。
-
-**核心功能：**
-- 注册工具函数
-- 处理客户端请求
-- 执行工具调用
-- 返回结果给客户端
-
-**关键实现 (`mcp_rag_agent_graphrag/mcp_agent/server.py`)：**
-
-```python
-# 创建MCP服务实例
-mcp = FastMCP("service_name")
-
-# 注册工具函数
-@mcp.tool()
-async def tool_function(param):
-    # 工具函数实现
-    
-# 运行服务
-mcp.run(transport="stdio")
-```
 
 ### 2.3 LangChain RAG系统
 
-基于LangChain实现的传统向量数据库RAG系统。
-
-**核心功能：**
-- 文档加载与处理
-- 文本分块
-- 向量嵌入生成
-- 向量存储与检索
-- 问答生成
-
-**关键实现 (`mcp_rag_langchain/rag_server.py`)：**
-
-```python
-class RAGSystem(object):
-    def build_knowledge(self, file_paths):
-        # 加载文档、分块、生成向量并存储
-        
-    def query(self, question):
-        # 检索相关文档并生成回答
-```
 
 ### 2.4 GraphRAG系统
 
-基于图数据库的增强型RAG系统，提供更丰富的语义关系和上下文理解。
-
-**核心功能：**
-- 实体提取与关系构建
-- 社区检测与分析
-- 多粒度上下文构建
-- 本地搜索、全局搜索和漂移搜索
-- 增强的问答生成
-
-**关键实现 (`mcp_rag_agent_graphrag/mcp_graphrag/graphrag_server.py`)：**
-
-```python
-def build_local_search_engine() -> LocalSearch:
-    # 构建本地搜索引擎
-    
-
-def build_global_search_engine() -> GlobalSearch:
-    # 构建全局搜索引擎
-    
-
-def build_drift_search_engine() -> DRIFTSearch:
-    # 构建漂移搜索引擎
-```
 
 ## 3. 交互关系
 
 ### 3.1 系统架构图
 
 ```mermaid
-graph TD
+graph TD 
     subgraph Client_Layer[客户端层]
         Client[MCP客户端]
     end
@@ -235,7 +137,7 @@ graph LR
 ### 4.1 RAG查询处理流程
 
 ```mermaid
-flowchart TD
+flowchart LR
     A[用户查询] --> B[客户端请求处理]
     B --> C{是否需要工具调用?}
     C -->|是| D[调用RAG工具]
@@ -258,7 +160,7 @@ flowchart TD
 ### 4.2 GraphRAG搜索流程
 
 ```mermaid
-flowchart TD
+flowchart LR
     A[用户查询] --> B[构建搜索引擎]
     B --> C[构建上下文]
     C --> D[实体检索]

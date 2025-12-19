@@ -1,315 +1,273 @@
-# MCP 服务器客户端架构分析
+# MCP Agent Demo 项目架构分析
 
-## 1. 概述
+## 1. 项目概述
 
-MCP (Model Control Protocol) 是一个用于连接AI模型与工具服务的协议框架，该项目实现了基于MCP的服务器客户端架构，主要用于将AI模型与天气查询服务进行集成。客户端负责与AI模型交互并处理用户查询，服务器端提供具体的工具服务（如天气查询），通过标准输入输出(stdio)进行通信。
+MCP Agent Demo是一个基于MCP（Model Context Protocol）协议的智能代理系统，主要实现了天气查询功能。该系统采用客户端-服务器架构，通过大语言模型（LLM）驱动工具调用，实现了自然语言到工具执行的无缝转换。
+
+**核心功能**：
+- 基于MCP协议的客户端-服务器通信
+- 大语言模型驱动的动态工具调用
+- 外部Weather API集成
+- 异步编程模型
+
+**技术栈**：
+- Python 3.x
+- MCP协议
+- OpenAI API
+- WeatherAPI.com
+- Asyncio & Httpx
+- 命令行交互
 
 ## 2. 模块分析
 
-### 2.1 客户端模块 (client.py)
+### 2.1 服务器模块 (server.py)
 
-客户端模块是用户与系统交互的入口，负责连接服务器、处理用户查询并与AI模型进行交互。
+**核心功能**：提供基于MCP协议的天气查询工具服务。
 
-**核心组件：**
+**关键组件**：
+- `FastMCP`：MCP服务器实例，用于注册和提供工具
+- `get_weather()`：异步调用WeatherAPI获取天气数据
+- `format_data()`：格式化天气API响应为友好文本
+- `query_weather()`：MCP工具，作为客户端调用的入口
 
-- **MCPClient类**：客户端的核心类，包含以下主要功能：
-  - `__init__`：初始化客户端，配置AI模型参数
-  - `connect_server`：连接到MCP服务器
-  - `process_query`：处理用户查询，调用AI模型和服务器工具
-  - `chat`：提供交互式聊天界面
-  - `cleanup`：资源清理
+**实现细节**：
+```python
+@mcp.tool()
+async def query_weather(city: str) -> str:
+    """
+    输入指定的城市名(英文)，返回今日天气情况
+    :param city: 城市名称(需使用英文)
+    :return: 格式化之后的天气信息
+    """
+    data = await get_weather(city)
+    weather_info = await format_data(json_data=data)
+    print("weather_info:", weather_info)
+    return weather_info
+```
 
-**关键依赖：**
-- mcp库：提供客户端会话管理和服务器通信功能
-- openai库：与通义千问模型进行交互
-- asyncio：支持异步编程
+**运行模式**：
+- `server`：启动MCP服务器，等待客户端连接
+- `test`：直接执行天气查询并显示结果，用于快速测试
 
-### 2.2 服务器模块 (server.py)
+### 2.2 客户端模块 (client.py)
 
-服务器模块提供具体的工具服务，供客户端调用。
+**核心功能**：处理用户输入，与LLM交互，调用服务器提供的工具。
 
-**核心组件：**
+**关键组件**：
+- `MCPClient`：客户端主类，管理服务器连接和工具调用
+- `connect_server()`：连接到MCP服务器
+- `process_query()`：处理用户查询，与LLM交互并调用工具
+- `chat()`：提供命令行交互界面
 
-- **FastMCP实例**：创建MCP服务器实例
-  ```python
-  mcp = FastMCP("weather")
-  ```
+**实现细节**：
+```python
+async def process_query(self, query):
+    messages = [{"role": "user", "content": query}]
+    tools_info = await self.session.list_tools()
+    
+    # 构建工具列表
+    available_tools = [{"type": "function", "function": {"name": tool.name, "description": tool.description, "input_schema": tool.inputSchema}} for tool in tools_info.tools]
+    
+    # 与LLM交互
+    response = self.client.chat.completions.create(model=self.model, messages=messages, tools=available_tools)
+    
+    # 处理工具调用
+    if response.choices[0].finish_reason == "tool_calls":
+        tool_call = message.tool_calls[0]
+        tool_name = tool_call.function.name
+        tool_args = json.loads(tool_call.function.arguments)
+        
+        # 调用服务器工具
+        result = await self.session.call_tool(tool_name, tool_args)
+        
+        # 将工具结果返回给LLM
+        messages.append(message.model_dump())
+        messages.append({"role": "tool", "content": result.content[0].text, "tool_call_id": tool_call.id})
+        response = self.client.chat.completions.create(model=self.model, messages=messages)
+        return response.choices[0].message.content
+```
 
-- **天气查询工具**：
-  - `get_weather`：调用WeatherAPI获取天气数据
-  - `format_data`：格式化天气数据为可读文本
-  - `query_weather`：定义为MCP工具，供客户端调用
+### 2.3 启动模块 (run.py)
 
-**关键依赖：**
-- mcp库：提供服务器创建和工具注册功能
-- httpx：异步HTTP请求库
+**核心功能**：协调客户端和服务器的启动流程。
 
-### 2.3 测试模块 (test.py)
+**实现细节**：
+```python
+def main():
+    # 构建client.py和server.py的绝对路径
+    client_path = os.path.join(script_dir, "client.py")
+    server_path = os.path.join(script_dir, "server.py")
+    
+    # 执行命令: python client.py server.py
+    command = [sys.executable, client_path, server_path]
+    
+    print("正在启动客户端并连接到服务器...")
+    subprocess.run(command, check=True)
+```
 
-简单的测试脚本，用于测试通义千问模型的基本功能。
+### 2.4 测试模块 (test.py)
+
+**核心功能**：验证LLM连接是否正常工作。
+
+**实现细节**：
+```python
+completion = client.chat.completions.create(
+    model=os.environ.get("MODEL"),
+    messages=[
+        {'role': 'system', 'content': 'You are a helpful assistant.'},
+        {'role': 'user', 'content': '你是谁？'}
+        ]
+)
+print(completion.choices[0].message.content)
+```
 
 ## 3. 交互关系
 
-### 3.1 架构图
+### 3.1 模块间依赖关系
 
 ```mermaid
-flowchart LR
-    subgraph 客户端层
-        A[用户输入] --> B[MCPClient.chat]
-        B --> C[MCPClient.process_query]
-        C --> D[OpenAI API调用]
-        C --> E[MCP ClientSession]
-    end
-
-    subgraph MCP协议层
-        E --> F[stdio_client]
-        F <--> G[服务器进程]
-    end
-
-    subgraph 服务器层
-        G --> H[FastMCP实例]
-        H --> I[query_weather工具]
-        I --> J[get_weather]
-        I --> L[format_data]
-        J --> K[WeatherAPI]
-    end
-
-    D --> M[通义千问模型]
-    M --> C
-    K --> J
-    L --> I
-    I --> H
-    H --> G
+graph TD
+    A[run.py] --> B[client.py]
+    B --> C[server.py]
+    B --> D[OpenAI API]
+    C --> E[WeatherAPI.com]
+    B --> F[.env 配置]
+    C --> F
+    G[test.py] --> D
     G --> F
-    F --> E
-    E --> C
-    C --> B
-    B --> N[结果输出]
-
-    classDef clientStyle fill:#FF6B6B,stroke:#2D3436,stroke-width:3px,color:white;
-    classDef protocolStyle fill:#4ECDC4,stroke:#2D3436,stroke-width:2px,color:#2D3436;
-    classDef serverStyle fill:#45B7D1,stroke:#2D3436,stroke-width:2px,color:white;
-    classDef modelStyle fill:#96CEB4,stroke:#2D3436,stroke-width:2px,color:#2D3436;
-    classDef apiStyle fill:#FF9FF3,stroke:#2D3436,stroke-width:2px,color:#2D3436;
-
-    class A,B,C,D,E,N clientStyle;
-    class F,G protocolStyle;
-    class H,I,J,L serverStyle;
-    class M modelStyle;
-    class K apiStyle;
+    
+    style A fill:#FF6B6B,stroke:#2D3436,stroke-width:3px,color:white
+    style B fill:#4ECDC4,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style C fill:#45B7D1,stroke:#2D3436,stroke-width:2px,color:white
+    style D fill:#96CEB4,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style E fill:#FF9FF3,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style F fill:#54A0FF,stroke:#2D3436,stroke-width:2px,color:white
+    style G fill:#FECA57,stroke:#2D3436,stroke-width:2px,color:#2D3436
 ```
 
-### 3.2 核心流程
+### 3.2 系统架构图
 
-#### 3.2.1 客户端启动与连接流程
+```mermaid
+graph LR
+    subgraph 用户交互层
+        A[用户命令行] -->|输入查询| B[client.py]
+        B -->|输出结果| A
+    end
+    
+    subgraph 客户端层
+        B -->|1. 构建工具列表| C[MCPClient]
+        C -->|2. 发送请求| D[OpenAI API]
+        D -->|3. 返回工具调用| C
+        C -->|4. 执行工具调用| E[MCP客户端]
+    end
+    
+    subgraph 服务器层
+        E -->|5. 调用工具| F[MCP服务器]
+        F -->|6. 执行查询| G[server.py]
+        G -->|7. 调用API| H[WeatherAPI.com]
+        H -->|8. 返回天气数据| G
+        G -->|9. 格式化数据| F
+        F -->|10. 返回结果| E
+    end
+    
+    C -->|11. 发送工具结果| D
+    D -->|12. 生成最终响应| C
+    
+    style A fill:#FF6B6B,stroke:#2D3436,stroke-width:3px,color:white
+    style B fill:#4ECDC4,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style C fill:#45B7D1,stroke:#2D3436,stroke-width:2px,color:white
+    style D fill:#96CEB4,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style E fill:#FF9FF3,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style F fill:#54A0FF,stroke:#2D3436,stroke-width:2px,color:white
+    style G fill:#FECA57,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style H fill:#E9ECEF,stroke:#2D3436,stroke-width:3px,color:#2D3436
+```
+
+## 4. 数据流向与控制流程
+
+### 4.1 主要数据流向
+
+```mermaid
+sequenceDiagram
+    participant User as 用户
+    participant Client as 客户端(client.py)
+    participant LLM as 大语言模型
+    participant MCP as MCP协议层
+    participant Server as 服务器(server.py)
+    participant WeatherAPI as 天气API
+    
+    User->>Client: 输入查询(如: "深圳天气如何？")
+    Client->>LLM: 发送查询和可用工具列表
+    LLM->>Client: 返回工具调用决策
+    Client->>MCP: 发送工具调用请求
+    MCP->>Server: 转发工具调用
+    Server->>WeatherAPI: 调用外部天气API
+    WeatherAPI->>Server: 返回天气数据
+    Server->>MCP: 返回格式化的天气信息
+    MCP->>Client: 转发工具调用结果
+    Client->>LLM: 发送工具调用结果
+    LLM->>Client: 生成自然语言响应
+    Client->>User: 显示最终结果
+```
+
+### 4.2 工具调用流程
 
 ```mermaid
 flowchart LR
-    subgraph 客户端初始化
-        A[创建MCPClient实例] --> B[配置AI模型参数]
-    end
-
-    subgraph 连接服务器
-        B --> C[调用connect_server]
-        C --> D[检查服务器脚本]
-        D --> E[创建StdioServerParameters]
-        E --> F[启动stdio_client]
-        F --> G[创建ClientSession]
-        G --> H[初始化会话]
-        H --> I[列出可用工具]
-    end
-
-    classDef initStyle fill:#54A0FF,stroke:#2D3436,stroke-width:2px,color:white;
-    classDef connectStyle fill:#FECA57,stroke:#2D3436,stroke-width:2px,color:#2D3436;
-
-    class A,B initStyle;
-    class C,D,E,F,G,H,I connectStyle;
+    A[用户输入查询] --> B[客户端构建消息]
+    B --> C[客户端获取可用工具列表]
+    C --> D[发送请求到LLM]
+    D --> E{LLM决策}
+    E -->|需要工具调用| F[解析工具调用参数]
+    F --> G[通过MCP调用服务器工具]
+    G --> H[服务器执行工具]
+    H --> I[调用外部API]
+    I --> J[格式化返回结果]
+    J --> K[返回工具执行结果]
+    K --> L[将结果发送回LLM]
+    L --> M[LLM生成最终响应]
+    M --> N[返回结果给用户]
+    E -->|直接回答| M
+    
+    style A fill:#FF6B6B,stroke:#2D3436,stroke-width:3px,color:white
+    style B fill:#4ECDC4,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style C fill:#45B7D1,stroke:#2D3436,stroke-width:2px,color:white
+    style D fill:#96CEB4,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style E fill:#FF9FF3,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style F fill:#54A0FF,stroke:#2D3436,stroke-width:2px,color:white
+    style G fill:#FECA57,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style H fill:#E9ECEF,stroke:#2D3436,stroke-width:3px,color:#2D3436
+    style I fill:#FF6B6B,stroke:#2D3436,stroke-width:3px,color:white
+    style J fill:#4ECDC4,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style K fill:#45B7D1,stroke:#2D3436,stroke-width:2px,color:white
+    style L fill:#96CEB4,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style M fill:#FF9FF3,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style N fill:#54A0FF,stroke:#2D3436,stroke-width:2px,color:white
 ```
 
-#### 3.2.2 查询处理流程
+## 5. 系统特性与设计亮点
 
-```mermaid
-flowchart LR
-    subgraph 用户交互
-        A[用户输入查询] --> B[MCPClient.chat]
-    end
+### 5.1 MCP协议的优势
 
-    subgraph 查询处理
-        B --> C[MCPClient.process_query]
-        C --> D[初始化消息列表]
-        D --> E[获取可用工具]
-        E --> F[构建工具列表]
-        F --> G[调用OpenAI API]
-    end
+- **动态工具发现**：客户端可以自动发现服务器提供的所有工具
+- **标准化通信**：采用统一的协议格式，便于扩展和集成
+- **异步支持**：完全支持异步编程模型，提高系统性能
 
-    subgraph 工具调用
-        G --> H{需要工具调用?}
-        H -->|是| I[提取工具调用信息]
-        I --> J[调用服务器工具]
-        J --> K[获取工具结果]
-        K --> L[追加原始消息]
-        L --> M[追加工具结果消息]
-        M --> G
-        H -->|否| N[返回AI模型响应]
-    end
+### 5.2 架构设计亮点
 
-    subgraph 结果输出
-        N --> O[显示结果]
-    end
+1. **分层架构**：清晰的用户交互层、客户端层和服务器层分离
+2. **松耦合设计**：各模块之间通过明确的接口通信，便于维护和扩展
+3. **配置驱动**：通过.env文件统一管理配置，便于部署和管理
+4. **错误处理**：完善的异常处理机制，提高系统稳定性
+5. **测试友好**：提供多种运行模式和测试工具，便于开发和调试
 
-    classDef userStyle fill:#FF6B6B,stroke:#2D3436,stroke-width:3px,color:white;
-    classDef processStyle fill:#4ECDC4,stroke:#2D3436,stroke-width:2px,color:#2D3436;
-    classDef toolStyle fill:#45B7D1,stroke:#2D3436,stroke-width:2px,color:white;
-    classDef outputStyle fill:#96CEB4,stroke:#2D3436,stroke-width:2px,color:#2D3436;
+## 6. 总结
 
-    class A,B userStyle;
-    class C,D,E,F,G processStyle;
-    class H,I,J,K,L,M toolStyle;
-    class N,O outputStyle;
-```
+MCP Agent Demo是一个基于MCP协议的智能代理系统，通过客户端-服务器架构实现了大语言模型与外部工具的无缝集成。系统的核心价值在于：
 
-#### 3.2.3 服务器工具调用流程
+1. **自然语言驱动**：用户可以通过自然语言查询天气信息
+2. **动态工具调用**：LLM可以根据用户需求动态选择合适的工具
+3. **模块化设计**：清晰的模块划分，便于维护和扩展
+4. **异步性能**：采用异步编程模型，提高系统响应速度
 
-```mermaid
-flowchart LR
-    subgraph MCP服务器
-        A[接收工具调用请求] --> B[FastMCP路由]
-        B --> C[调用query_weather工具]
-    end
-
-    subgraph 天气查询处理
-        C --> D[调用get_weather获取天气数据]
-        D --> E[构建WeatherAPI请求参数]
-        E --> F[发起HTTP异步请求]
-        F --> G[WeatherAPI服务]
-        G --> H[获取天气JSON数据]
-        H --> I[调用format_data格式化数据]
-        I --> J[生成可读天气信息]
-    end
-
-    subgraph 结果返回
-        J --> K[返回工具执行结果]
-        K --> L[MCP响应封装]
-        L --> M[客户端]
-    end
-
-    classDef serverStyle fill:#54A0FF,stroke:#2D3436,stroke-width:2px,color:white;
-    classDef weatherStyle fill:#FECA57,stroke:#2D3436,stroke-width:2px,color:#2D3436;
-    classDef responseStyle fill:#E9ECEF,stroke:#2D3436,stroke-width:3px,color:#2D3436;
-
-    class A,B,C serverStyle;
-    class D,E,F,G,H,I,J weatherStyle;
-    class K,L,M responseStyle;
-```
-
-## 4. 数据流向
-
-1. **用户输入** → 客户端`chat`方法
-2. **用户查询** → 客户端`process_query`方法
-3. **查询内容** → 初始化消息列表 → 获取可用工具列表 → 构建工具列表 → 调用OpenAI API
-4. **AI模型响应** → 检查是否需要工具调用
-5. **需要工具调用** → 提取工具调用信息 → 调用`ClientSession.call_tool` → 通过stdio发送到服务器
-6. **服务器接收请求** → FastMCP路由 → 调用`query_weather`工具
-7. **工具执行** → 调用`get_weather` → 构建API请求参数 → 发起HTTP异步请求 → 获取WeatherAPI数据 → 调用`format_data`格式化数据
-8. **工具结果** → 通过stdio返回给客户端
-9. **工具结果处理** → 追加原始消息 → 追加工具结果消息 → 再次调用OpenAI API
-10. **最终响应** → 显示给用户
-11. **不需要工具调用** → 直接返回AI模型响应 → 显示给用户
-
-## 5. 使用指南
-
-### 5.1 环境配置
-
-1. 确保已安装Python 3.8或更高版本
-2. 安装所需依赖：
-   ```bash
-   pip install openai httpx python-dotenv mcp
-   ```
-3. 配置`.env`文件中的环境变量：
-   ```env
-   # 阿里云DashScope API配置
-   BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-   API_KEY=sk-xxx  # 替换为你的API Key
-   MODEL=qwen-plus  # 使用的模型名称
-   
-   # 天气API配置
-   WEATHER_API_KEY=xxx  # 替换为你的WeatherAPI Key
-   WEATHER_API_URL=http://api.weatherapi.com/v1/current.json
-   ```
-
-### 5.2 运行步骤
-
-1. 启动客户端并连接到服务器：
-   ```bash
-   python client.py server.py
-   ```
-
-2. 在客户端界面中输入查询：
-   ```
-   请输入:深圳的天气怎么样？
-   ```
-
-3. 查看结果输出：
-   ```
-   执行的工具名: query_weather, 参数: {'city': 'Shenzhen'}
-   结果: 当前城市China.Shenzhen
-     温度:27.1，湿度:89，风速:15.8， 天气情况:Moderate or heavy rain with thunder
-   ```
-
-## 6. 代码示例
-
-### 6.1 客户端使用示例
-
-```python
-# 创建客户端实例
-client = MCPClient()
-
-# 连接到服务器
-await client.connect_server("server.py")
-
-# 处理用户查询
-result = await client.process_query("北京的天气怎么样？")
-print(result)
-
-# 清理资源
-await client.cleanup()
-```
-
-### 6.2 服务器工具扩展示例
-
-```python
-# 添加新工具
-@mcp.tool()
-async def new_tool(param1: str, param2: int) -> str:
-    """
-    新工具的描述
-    :param param1: 参数1描述
-    :param param2: 参数2描述
-    :return: 工具执行结果
-    """
-    # 工具实现逻辑
-    return f"处理结果: {param1} {param2}"
-```
-
-## 7. 常见问题
-
-1. **问题**：客户端连接服务器失败
-   **解决方案**：检查服务器脚本路径是否正确，确保服务器脚本是有效的Python文件
-
-2. **问题**：天气查询返回错误
-   **解决方案**：检查WeatherAPI Key是否有效，确保城市名称使用英文
-
-3. **问题**：AI模型响应慢
-   **解决方案**：检查网络连接，或尝试使用其他模型
-
-## 8. 总结
-
-该项目实现了一个基于MCP的服务器客户端架构，主要特点包括：
-
-1. **模块化设计**：客户端与服务器分离，通过MCP协议进行通信
-2. **异步编程**：使用asyncio实现异步通信和处理
-3. **工具扩展**：服务器端可以轻松扩展更多工具服务
-4. **AI模型集成**：支持与大语言模型（如通义千问）进行集成
-5. **stdio通信**：使用标准输入输出作为传输方式，提高通信效率
-
-该架构为AI模型与工具服务的集成提供了一种灵活的解决方案，使得AI模型能够利用外部工具获取实时数据，增强了AI模型的实用性和扩展性。通过简单的配置和扩展，可以快速将AI模型与各种外部服务进行集成，实现更丰富的功能。
+该项目展示了如何将大语言模型与外部API集成，实现智能代理系统的设计和开发，为构建更复杂的智能应用提供了参考架构。
