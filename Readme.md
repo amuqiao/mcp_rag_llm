@@ -262,22 +262,32 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A[用户输入: "深圳的天气如何?"] --> B[客户端接收查询]
-    B --> C[客户端发送查询给LLM]
-    C --> D[LLM识别需要调用query_weather工具]
-    D --> E[客户端调用MCP服务端的query_weather工具, 参数: {"city": "Shenzhen"}]
-    E --> F[服务端调用get_weather函数]
-    F --> G[异步请求天气API]
-    G --> H[解析API响应]
-    H --> I[调用format_data格式化数据]
-    I --> J[返回格式化的天气信息]
-    J --> K[客户端发送天气信息给LLM]
-    K --> L[LLM生成自然语言回答]
-    L --> M[客户端显示回答给用户]
+    A["用户输入: 深圳的天气如何?"] --> B["客户端接收查询"]
+    B --> C["客户端发送查询给LLM"]
+    C --> D["LLM识别需要调用query_weather工具"]
+    D --> E["客户端调用MCP服务端的query_weather工具, 参数: {&quot;city&quot;: &quot;Shenzhen&quot;}"]
+    E --> F["服务端调用get_weather函数"]
+    F --> G["异步请求天气API"]
+    G --> H["解析API响应"]
+    H --> I["调用format_data格式化数据"]
+    I --> J["返回格式化的天气信息"]
+    J --> K["客户端发送天气信息给LLM"]
+    K --> L["LLM生成自然语言回答"]
+    L --> M["客户端显示回答给用户"]
     
     style A fill:#FF6B6B,stroke:#2D3436,stroke-width:2px,color:white
-    style B,C,D,E,F,G,H,I fill:#4ECDC4,stroke:#2D3436,stroke-width:2px,color:#2D3436
-    style J,K,L,M fill:#96CEB4,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style B fill:#4ECDC4,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style C fill:#4ECDC4,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style D fill:#4ECDC4,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style E fill:#4ECDC4,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style F fill:#4ECDC4,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style G fill:#4ECDC4,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style H fill:#4ECDC4,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style I fill:#4ECDC4,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style J fill:#96CEB4,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style K fill:#96CEB4,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style L fill:#96CEB4,stroke:#2D3436,stroke-width:2px,color:#2D3436
+    style M fill:#96CEB4,stroke:#2D3436,stroke-width:2px,color:#2D3436
 ```
 
 ### 4.2 GraphRAG文档处理流程
